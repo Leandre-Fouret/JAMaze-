@@ -1,72 +1,150 @@
 using UnityEngine;
+using TMPro;
 
 public class PlayerInteraction : MonoBehaviour
 {
-    public float pickupRange = 3f;          // Distance de détection
-    public LayerMask pickupLayer;           // Couche des objets à ramasser
-    public Transform handTransform;         // Transform de la main du joueur pour tenir l'objet
-    public GameObject pickupPrompt;         // Référence vers le prompt UI
+    public float pickupRange = 3f;
+    public LayerMask pickupLayer;
+    public Transform handTransform;
+    public GameObject pickupPrompt;
 
-    private PickupItem itemInSight;         // L'objet actuellement détecté
-    private GameObject heldItem;            // L'objet actuellement tenu par le joueur
+    public TextMeshProUGUI doorPromptText; // Texte à afficher
 
-    public float placeDistance = 2f;        // Distance à laquelle l'objet est posé devant le joueur
+    private PickupItem itemInSight;
+    private GameObject heldItem;
+
+    public float placeDistance = 2f;
 
     void Update()
     {
-        DetectPickupItem();  // Détecter l'objet à ramasser
+        DetectPickupItem();
+        DetectDoorInFront();
 
-        // Ramasser l'objet
         if (itemInSight != null && Input.GetKeyDown(KeyCode.E) && heldItem == null)
         {
             PickupItem item = itemInSight;
-            heldItem = Instantiate(item.itemModel, handTransform.position, Quaternion.identity, handTransform);  // Crée l'objet dans la main
-            heldItem.transform.localPosition = Vector3.zero;  // Positionne l'objet correctement dans la main
+            heldItem = Instantiate(item.itemModel, handTransform.position, Quaternion.identity, handTransform);
+            heldItem.transform.localPosition = Vector3.zero;
             heldItem.transform.localRotation = Quaternion.identity;
-
-            // Désactiver l'objet dans le monde
             Destroy(item.gameObject);
             itemInSight = null;
-            pickupPrompt.SetActive(false);  // Masquer le prompt de ramassage
+            pickupPrompt.SetActive(false);
         }
 
-        // Reposer l'objet
         if (heldItem != null && Input.GetKeyDown(KeyCode.R))
         {
-            PlaceItemInWorld();  // Repose l'objet dans le monde
-            Destroy(heldItem);  // Détruire l'objet de la main
-            heldItem = null;  // Supprimer la référence de l'objet tenu
+            PlaceItemInWorld();
+            Destroy(heldItem);
+            heldItem = null;
+        }
+
+        if (heldItem != null && Input.GetKeyDown(KeyCode.F))
+        {
+            TryUseKeyOnDoor();
         }
     }
 
     void DetectPickupItem()
     {
-        Ray ray = new Ray(Camera.main.transform.position, Camera.main.transform.forward);  // Raycast depuis la caméra
-        if (Physics.Raycast(ray, out RaycastHit hit, pickupRange, pickupLayer))  // Vérifie les objets dans la portée
+        Ray ray = new Ray(Camera.main.transform.position, Camera.main.transform.forward);
+        if (Physics.Raycast(ray, out RaycastHit hit, pickupRange, pickupLayer))
         {
             PickupItem item = hit.collider.GetComponent<PickupItem>();
-            if (item != null && heldItem == null)  // S'assurer qu'on n'a pas déjà un objet en main
+            if (item != null && heldItem == null)
             {
                 itemInSight = item;
-                pickupPrompt.SetActive(true);  // Affiche le prompt de ramassage
+                pickupPrompt.SetActive(true);
                 return;
             }
         }
 
-        // Si aucun objet n'est détecté
         itemInSight = null;
-        pickupPrompt.SetActive(false);  // Masquer le prompt
+        pickupPrompt.SetActive(false);
     }
 
     void PlaceItemInWorld()
     {
-        // Utilise une position directement devant le joueur à une certaine distance
         Vector3 positionToPlace = Camera.main.transform.position + Camera.main.transform.forward * placeDistance;
-
-        // Ajuster la position pour éviter que l'objet soit trop collé à la caméra ou dans un obstacle
-        positionToPlace.y = 1.0f;  // Positionner sur le sol, ajuster si nécessaire selon la hauteur du terrain
-
-        // Instancier l'objet dans le monde à la position calculée
+        positionToPlace.y = 1.0f;
         Instantiate(heldItem, positionToPlace, Quaternion.identity);
+    }
+
+    void TryUseKeyOnDoor()
+    {
+        PickupItem heldItemScript = heldItem.GetComponent<PickupItem>();
+        if (heldItemScript == null || !heldItemScript.isKey)
+            return;
+
+        Ray ray = new Ray(Camera.main.transform.position, Camera.main.transform.forward);
+        if (Physics.Raycast(ray, out RaycastHit hit, pickupRange))
+        {
+            Door door = hit.collider.GetComponent<Door>();
+            if (door != null)
+            {
+                if (heldItemScript.keyID == door.doorID)
+                {
+                    door.TryOpen(heldItemScript.keyID);
+                    Destroy(heldItem);
+                    heldItem = null;
+                    doorPromptText.gameObject.SetActive(false); // Désactiver le texte après ouverture
+                }
+                else
+                {
+                    Debug.Log("Mauvaise clé !");
+                }
+            }
+        }
+    }
+
+    void DetectDoorInFront()
+    {
+        Ray ray = new Ray(Camera.main.transform.position, Camera.main.transform.forward);
+        if (Physics.Raycast(ray, out RaycastHit hit, pickupRange))
+        {
+            Door door = hit.collider.GetComponent<Door>();
+            if (door != null)
+            {
+                Debug.Log("Porte détectée : " + door.name);  // Log pour vérifier que la porte est bien détectée
+                doorPromptText.gameObject.SetActive(true); // Afficher le texte
+
+                PickupItem heldItemScript = heldItem != null ? heldItem.GetComponent<PickupItem>() : null;
+
+                // Si on a un objet en main, vérifier s'il s'agit d'une clé
+                if (heldItemScript != null)
+                {
+                    Debug.Log("Objet en main : " + heldItemScript.itemName);  // Log pour vérifier l'objet en main
+
+                    if (heldItemScript.isKey)
+                    {
+                        Debug.Log("C'est une clé !");  // Log si l'objet est une clé
+
+                        if (heldItemScript.keyID == door.doorID)
+                        {
+                            Debug.Log("La clé correspond à la porte !");  // Log pour vérifier si la clé correspond à la porte
+                            doorPromptText.text = "Appuyez sur F pour ouvrir la porte";
+                        }
+                        else
+                        {
+                            Debug.Log("La clé ne correspond pas à la porte");  // Log pour vérifier que la clé ne correspond pas
+                            doorPromptText.text = "Il vous faut la bonne clé pour ouvrir la porte";
+                        }
+                    }
+                    else
+                    {
+                        Debug.Log("L'objet en main n'est pas une clé");  // Log si l'objet en main n'est pas une clé
+                        doorPromptText.text = "Il vous faut la bonne clé pour ouvrir la porte";
+                    }
+                }
+                else
+                {
+                    Debug.Log("Aucun objet en main");  // Log si aucun objet n'est en main
+                    doorPromptText.text = "Il vous faut la bonne clé pour ouvrir la porte";
+                }
+
+                return;
+            }
+        }
+
+        doorPromptText.gameObject.SetActive(false); // Cacher le texte si pas de porte
     }
 }

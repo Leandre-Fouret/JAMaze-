@@ -3,7 +3,11 @@ using UnityEngine;
 public class PickupItem : MonoBehaviour
 {
     public string itemName;
-    public Sprite icon; // Pour l'inventaire
-    public GameObject itemModel; // Ce qui sera affiché dans la main
-    public bool isPickedUp = false; // Ajout d'un booléen pour savoir si l'objet a déjà été pris
+    public Sprite icon;
+    public GameObject itemModel;
+    public bool isPickedUp = false;
+
+    // Nouveau : pour gérer les clés
+    public bool isKey = false;
+    public string keyID; // Un ID unique pour savoir quelle porte elle ouvre
 }
