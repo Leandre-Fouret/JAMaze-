@@ -1,3 +1,4 @@
+
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
 --- !u!114 &-9167874883656233139
@@ -981,3 +982,7 @@ MonoBehaviour:
   p2:
     m_OverrideState: 1
     m_Value: 0
+version https://git-lfs.github.com/spec/v1
+oid sha256:3a6f825e8d07fe8b9f3b52e7d4e2dfa0e22c555b22335adb19f0ecc66dfa38dd
+size 23987
+
