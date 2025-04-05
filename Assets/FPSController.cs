@@ -31,13 +31,20 @@ public class FPSController : MonoBehaviour
 
     CharacterController characterController;
 
+    public GameObject deathText;                // Le message 'You DIED'
+
     public Light spotlight; // Référence au spotlight
+
+    private Animator animator;
+
     void Start()
     {
         characterController = GetComponent<CharacterController>();
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
         Stamina = MaxStamina;
+        deathText.SetActive(false);
+        animator = GetComponent<Animator>();
     }
 
     void Update()
@@ -53,8 +60,15 @@ public class FPSController : MonoBehaviour
         float curSpeedX = canMove ? (isRunning ? runSpeed : walkSpeed) * Input.GetAxis("Vertical") : 0;
         float curSpeedY = canMove ? (isRunning ? runSpeed : walkSpeed) * Input.GetAxis("Horizontal") : 0;
         float movementDirectionY = moveDirection.y;
+
+        float moveX = Input.GetAxis("Horizontal");
+        float moveY = Input.GetAxis("Vertical");
+        float speed = Mathf.Abs(moveX) + Mathf.Abs(moveY);
+        print("Speed is "+ speed);
+
         moveDirection = (forward * curSpeedX) + (right * curSpeedY);
 
+        animator.SetFloat("Speed", speed);
         if (isRunning && (Input.GetAxis("Vertical") != 0 || Input.GetAxis("Horizontal") != 0))
         {
             Stamina -= staminaUseRate;
@@ -110,6 +124,7 @@ public class FPSController : MonoBehaviour
             playerCamera.transform.localRotation = Quaternion.Euler(rotationX, 0, 0);
             transform.rotation *= Quaternion.Euler(0, Input.GetAxis("Mouse X") * lookSpeed, 0);
         }
+
         // Vérifier si la touche F est pressée
         if (Input.GetKeyDown(KeyCode.F))
         {
@@ -117,5 +132,17 @@ public class FPSController : MonoBehaviour
             spotlight.enabled = !spotlight.enabled;
         }
         #endregion
+    }
+
+    // If the enemy uses triggers, use this method instead of OnCollisionEnter
+    void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("Enemy"))
+        {
+            Debug.Log("COLLISION DETECTED");
+            // Optional: Destroy enemy or handle game-over logic
+            deathText.SetActive(true);
+            Destroy(GameObject.FindGameObjectWithTag("Enemy"));
+         }
     }
 }
