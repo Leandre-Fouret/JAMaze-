@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -13,7 +13,7 @@ public class FPSController : MonoBehaviour
     public float gravity = 10f;
 
     public float lookSpeed = 2f;
-    public float lookXLimit = 0f;
+    public float lookXLimit = 90f;  // Adjusted to allow full vertical rotation
 
     Vector3 moveDirection = Vector3.zero;
     float rotationX = 0;
@@ -22,20 +22,25 @@ public class FPSController : MonoBehaviour
 
     public Image StaminaBar;
     public float Stamina, MaxStamina;
-    public float staminaRegenRate = 10f;         // Stamina regenerée par seconde
-    public float staminaRegenDelay = 2f;         // Délai avant la regen si stamina = 0
-    public float staminaUseRate = 1f;            // Stamina consommée par frame
+    public float staminaRegenRate = 10f;         // Stamina regenerates per second
+    public float staminaRegenDelay = 2f;         // Delay before regen if stamina = 0
+    public float staminaUseRate = 1f;            // Stamina used per frame
 
-    private float staminaRegenTimer = 0f;        // Timer pour le cooldown
-    private bool isRecovering = true;            // Flag pour bloquer la regen
+    private float staminaRegenTimer = 0f;        // Timer for cooldown
+    private bool isRecovering = true;            // Flag to block regen
 
     CharacterController characterController;
 
-    public GameObject deathText;                // Le message 'You DIED'
+    public GameObject deathText;                // 'You DIED' message
 
-    public Light spotlight; // Référence au spotlight
+    public Light spotlight; // Reference to the spotlight
 
     private Animator animator;
+
+    // Walking bobbing variables
+    private float walkBobSpeed = 14f;
+    private float walkBobAmount = 0.0075f;
+    private float timer = 0f;
 
     void Start()
     {
@@ -44,7 +49,6 @@ public class FPSController : MonoBehaviour
         Cursor.visible = false;
         Stamina = MaxStamina;
         deathText.SetActive(false);
-        animator = GetComponent<Animator>();
     }
 
     void Update()
@@ -61,20 +65,14 @@ public class FPSController : MonoBehaviour
         float curSpeedY = canMove ? (isRunning ? runSpeed : walkSpeed) * Input.GetAxis("Horizontal") : 0;
         float movementDirectionY = moveDirection.y;
 
-        float moveX = Input.GetAxis("Horizontal");
-        float moveY = Input.GetAxis("Vertical");
-        float speed = Mathf.Abs(moveX) + Mathf.Abs(moveY);
-        print("Speed is "+ speed);
-
         moveDirection = (forward * curSpeedX) + (right * curSpeedY);
 
-        animator.SetFloat("Speed", speed);
         if (isRunning && (Input.GetAxis("Vertical") != 0 || Input.GetAxis("Horizontal") != 0))
         {
             Stamina -= staminaUseRate;
             if (Stamina < 0) Stamina = 0;
-            staminaRegenTimer = 0f; // reset le timer
-            isRecovering = false;  // désactive la regen
+            staminaRegenTimer = 0f;
+            isRecovering = false;
         }
         else
         {
@@ -115,21 +113,46 @@ public class FPSController : MonoBehaviour
         #endregion
 
         #region Handles Rotation
+        // Handles movement first
         characterController.Move(moveDirection * Time.deltaTime);
 
         if (canMove)
         {
+            // Vertical Rotation (Looking Up/Down)
             rotationX += -Input.GetAxis("Mouse Y") * lookSpeed;
-            rotationX = Mathf.Clamp(rotationX, -lookXLimit, lookXLimit);
+            rotationX = Mathf.Clamp(rotationX, -lookXLimit, lookXLimit); // Full vertical rotation without limitation
             playerCamera.transform.localRotation = Quaternion.Euler(rotationX, 0, 0);
+
+            // Horizontal Rotation (Turning Left/Right)
             transform.rotation *= Quaternion.Euler(0, Input.GetAxis("Mouse X") * lookSpeed, 0);
         }
 
-        // Vérifier si la touche F est pressée
+        // Spotlight toggle with 'F' key
         if (Input.GetKeyDown(KeyCode.F))
         {
-            // Alterner l'état du spotlight
             spotlight.enabled = !spotlight.enabled;
+        }
+        #endregion
+
+        #region Walking Bobbing (Head Bouncing Effect)
+        if (characterController.isGrounded && (Input.GetAxis("Vertical") != 0 || Input.GetAxis("Horizontal") != 0))
+        {
+            timer += Time.deltaTime * walkBobSpeed;
+            float waveSlice = Mathf.Sin(timer);
+
+            if (waveSlice != 0)
+            {
+                playerCamera.transform.localPosition = new Vector3(playerCamera.transform.localPosition.x,
+                                                                    playerCamera.transform.localPosition.y + waveSlice * walkBobAmount,
+                                                                    playerCamera.transform.localPosition.z);
+            }
+        }
+        else
+        {
+            timer = 0f; // Reset when not moving
+            playerCamera.transform.localPosition = new Vector3(playerCamera.transform.localPosition.x,
+                                                                playerCamera.transform.localPosition.y,
+                                                                playerCamera.transform.localPosition.z);
         }
         #endregion
     }
@@ -139,10 +162,8 @@ public class FPSController : MonoBehaviour
     {
         if (other.CompareTag("Enemy"))
         {
-            Debug.Log("COLLISION DETECTED");
-            // Optional: Destroy enemy or handle game-over logic
             deathText.SetActive(true);
             Destroy(GameObject.FindGameObjectWithTag("Enemy"));
-         }
+        }
     }
 }
