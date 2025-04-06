@@ -39,7 +39,7 @@ public class FPSController : MonoBehaviour
 
     // Walking bobbing variables
     private float walkBobSpeed = 14f;
-    private float walkBobAmount = 0.0075f;
+    private float walkBobAmount = 0.00f;
     private float timer = 0f;
 
     void Start()
